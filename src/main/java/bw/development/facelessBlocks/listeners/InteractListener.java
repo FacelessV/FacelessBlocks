@@ -1,8 +1,9 @@
 package bw.development.facelessBlocks.listeners;
 
 import bw.development.facelessBlocks.FacelessBlocks;
-import bw.development.facelessBlocks.data.Keys;
+import bw.development.facelessBlocks.data.MachineData;
 import bw.development.facelessBlocks.gui.MachineGUI;
+import bw.development.facelessBlocks.hooks.VaultHook;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -17,7 +18,6 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 public class InteractListener implements Listener {
 
@@ -27,18 +27,9 @@ public class InteractListener implements Listener {
             BlockState state = event.getClickedBlock().getState();
             if (state instanceof Barrel) {
                 Barrel barrel = (Barrel) state;
-
-                // Verificar si es Reciclador
-                if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
-
-                    // 1. Asegurar que los botones visuales existen en el bloque REAL antes de abrir
+                if (FacelessBlocks.getInstance().getMachineManager().isMachine(barrel.getLocation())) {
                     MachineGUI gui = new MachineGUI(barrel);
                     gui.updateInterface();
-                    barrel.update(); // <--- IMPORTANTE: Guardamos los botones en el mundo
-
-                    // 2. NO CANCELAMOS EL EVENTO.
-                    // Al no poner 'event.setCancelled(true)', Minecraft abre el inventario real.
-                    // Esto conecta al jugador con el mismo inventario que ve el Ticker.
                 }
             }
         }
@@ -47,28 +38,23 @@ public class InteractListener implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         Inventory inv = event.getInventory();
-
         if (inv.getHolder() instanceof Barrel) {
             Barrel barrel = (Barrel) inv.getHolder();
-            // Verificar ubicación para asegurar que es nuestra máquina
-            if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
-
+            if (FacelessBlocks.getInstance().getMachineManager().isMachine(barrel.getLocation())) {
                 if (event.getRawSlot() < inv.getSize()) {
                     int slot = event.getSlot();
-
                     if (MachineGUI.isSystemSlot(slot)) {
-                        event.setCancelled(true); // Bloquear robo de botones
+                        event.setCancelled(true);
 
+                        // Lógica de Compra
                         if (slot == MachineGUI.SLOT_SPEED) {
-                            handleUpgrade((Player) event.getWhoClicked(), barrel, Keys.UPGRADE_SPEED);
+                            handleUpgrade((Player) event.getWhoClicked(), barrel, "SPEED");
                         } else if (slot == MachineGUI.SLOT_LUCK) {
-                            handleUpgrade((Player) event.getWhoClicked(), barrel, Keys.UPGRADE_LUCK);
+                            handleUpgrade((Player) event.getWhoClicked(), barrel, "LUCK");
                         }
                     }
                 } else {
-                    if (event.isShiftClick()) {
-                        event.setCancelled(true);
-                    }
+                    if (event.isShiftClick()) event.setCancelled(true);
                 }
             }
         }
@@ -78,10 +64,8 @@ public class InteractListener implements Listener {
     public void onHopperMove(InventoryMoveItemEvent event) {
         if (event.getSource().getHolder() instanceof Barrel) {
             Barrel barrel = (Barrel) event.getSource().getHolder();
-            if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
-
+            if (FacelessBlocks.getInstance().getMachineManager().isMachine(barrel.getLocation())) {
                 ItemStack item = event.getItem();
-                // Bloquear que las tolvas roben los botones de decoración
                 if (item.getType() == Material.GRAY_STAINED_GLASS_PANE ||
                         item.getType() == Material.LIME_STAINED_GLASS_PANE ||
                         item.getType() == Material.RED_STAINED_GLASS_PANE ||
@@ -93,19 +77,52 @@ public class InteractListener implements Listener {
         }
     }
 
-    private void handleUpgrade(Player player, Barrel barrel, org.bukkit.NamespacedKey key) {
-        int currentLevel = barrel.getPersistentDataContainer().getOrDefault(key, PersistentDataType.INTEGER, 0);
-        if (currentLevel >= 5) {
+    private void handleUpgrade(Player player, Barrel barrel, String type) {
+        MachineData data = FacelessBlocks.getInstance().getMachineManager().getMachine(barrel.getLocation());
+        if (data == null) return;
+
+        int currentLevel = 0;
+        int maxLevel = 5;
+        double cost = 0;
+
+        // Configurar precios según tipo (Coincide con Config y GUI)
+        if (type.equals("SPEED")) {
+            currentLevel = data.getSpeedLevel();
+            cost = MachineGUI.calculateCost(1000, 1.5, currentLevel);
+        } else if (type.equals("LUCK")) {
+            currentLevel = data.getLuckLevel();
+            cost = MachineGUI.calculateCost(2500, 2.0, currentLevel);
+        }
+
+        // 1. Validar Nivel Máximo
+        if (currentLevel >= maxLevel) {
             player.sendMessage(Component.text("§c¡Nivel máximo alcanzado!"));
+            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1, 0.5f);
             return;
         }
 
-        barrel.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, currentLevel + 1);
-        barrel.update();
-        new MachineGUI(barrel).updateStatusIcon(); // Actualizar visualmente
-        barrel.update(); // Guardar cambio visual
+        // 2. Validar Dinero (Vault)
+        if (!VaultHook.getEconomy().has(player, cost)) {
+            player.sendMessage(Component.text("§cNo tienes suficiente dinero. Necesitas §e$" + (int)cost));
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+            return;
+        }
 
-        player.sendMessage(Component.text("§a¡Mejora aplicada a Nivel " + (currentLevel + 1) + "!"));
+        // 3. Cobrar
+        VaultHook.getEconomy().withdrawPlayer(player, cost);
+
+        // 4. Aplicar Mejora
+        if (type.equals("SPEED")) {
+            data.setSpeedLevel(currentLevel + 1);
+        } else if (type.equals("LUCK")) {
+            data.setLuckLevel(currentLevel + 1);
+        }
+
+        FacelessBlocks.getInstance().getMachineManager().saveAsync();
+        new MachineGUI(barrel).updateStatusIcon();
+
+        player.sendMessage(Component.text("§a¡Mejora comprada! Nuevo nivel: " + (currentLevel + 1)));
+        player.sendMessage(Component.text("§7Se te han cobrado §c$" + (int)cost));
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);
     }
 }

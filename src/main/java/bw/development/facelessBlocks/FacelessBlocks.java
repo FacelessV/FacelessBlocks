@@ -3,6 +3,7 @@ package bw.development.facelessBlocks;
 import bw.development.facelessBlocks.commands.MachineCommands;
 import bw.development.facelessBlocks.data.Keys;
 import bw.development.facelessBlocks.data.MachineManager;
+import bw.development.facelessBlocks.hooks.VaultHook;
 import bw.development.facelessBlocks.listeners.BlockListener;
 import bw.development.facelessBlocks.listeners.InteractListener;
 import bw.development.facelessBlocks.tasks.AutoRefreshTask;
@@ -18,15 +19,20 @@ public final class FacelessBlocks extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // 1. Cargar Configuración
+        // 1. Configuración y Datos
         saveDefaultConfig();
-
-        // 2. Cargar Llaves de Datos
         Keys.load(this);
+
+        // 2. Setup de Economía (Vault)
+        if (!VaultHook.setupEconomy(this)) {
+            getLogger().severe("¡Vault no encontrado! Desactivando plugin.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         this.machineManager = new MachineManager(this);
 
-        // 3. Registrar Eventos
+        // 3. Eventos y Comandos
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
         getServer().getPluginManager().registerEvents(new InteractListener(), this);
 
@@ -34,17 +40,16 @@ public final class FacelessBlocks extends JavaPlugin {
         getCommand("giverecycler").setExecutor(cmdExecutor);
         getCommand("clearrecyclers").setExecutor(cmdExecutor);
 
-        // 4. Iniciar la tarea repetitiva (El Ticker)
-        // Se ejecuta cada 20 ticks (1 segundo)
+        // 4. Tareas
         new MachineTicker().runTaskTimer(this, 20L, 20L);
         new AutoRefreshTask().runTaskTimer(this, 5L, 5L);
 
-        getLogger().info("FacelessBlocks ha sido habilitado correctamente.");
+        getLogger().info("FacelessBlocks habilitado con soporte de Economía.");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("FacelessBlocks se ha desactivado.");
+        getLogger().info("FacelessBlocks desactivado.");
     }
 
     public static FacelessBlocks getInstance() {

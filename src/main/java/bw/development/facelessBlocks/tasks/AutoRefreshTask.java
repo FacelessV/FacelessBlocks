@@ -21,8 +21,8 @@ public class AutoRefreshTask extends BukkitRunnable {
             if (top.getHolder() instanceof Barrel) {
                 Barrel barrel = (Barrel) top.getHolder();
 
-                // Verificamos si ese barril es un Reciclador
-                if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
+                // CORRECCIÓN: Usar isMachine() en lugar de isRecycler()
+                if (FacelessBlocks.getInstance().getMachineManager().isMachine(barrel.getLocation())) {
                     // Actualizamos solo la interfaz (iconos de estado y progreso)
                     // No tocamos los items de input/output para no molestar al jugador
                     new MachineGUI(barrel).updateStatusIcon();
