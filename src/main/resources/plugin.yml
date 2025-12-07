@@ -1,0 +1,11 @@
+name: FacelessBlocks
+version: '1.0-SNAPSHOT'
+main: bw.development.facelessBlocks.FacelessBlocks
+api-version: '1.21'
+commands:
+  giveaccelerator:
+    description: Te da el bloque acelerador de cultivos.
+    usage: /giveaccelerator
+  clearaccelerators: # <-- AÑADE ESTO
+    description: Elimina todos los aceleradores en un radio.
+    usage: /clearaccelerators [radio]

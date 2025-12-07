@@ -1,0 +1,9 @@
+bw\development\facelessBlocks\FacelessBlocks.class
+bw\development\facelessBlocks\listeners\InteractListener.class
+bw\development\facelessBlocks\utils\RecyclerRecipes.class
+bw\development\facelessBlocks\gui\MachineGUI.class
+bw\development\facelessBlocks\tasks\AutoRefreshTask.class
+bw\development\facelessBlocks\utils\RecyclerRecipes$RecycleResult.class
+bw\development\facelessBlocks\data\Keys.class
+bw\development\facelessBlocks\listeners\BlockListener.class
+bw\development\facelessBlocks\tasks\MachineTicker.class

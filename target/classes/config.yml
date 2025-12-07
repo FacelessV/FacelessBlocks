@@ -1,0 +1,148 @@
+# =============================================================
+#           FACELESS BLOCKS - CONFIGURACION PRINCIPAL
+# =============================================================
+# Nota: No usar caracteres especiales como la 'ñ' o tildes en
+# las claves de configuracion interna.
+# =============================================================
+
+config_version: 1.0
+
+# Configuracion General de Mensajes
+messages:
+  prefix: "&8[&bFacelessBlocks&8] &7"
+  no_permission: "&cNo tienes permiso para hacer esto."
+  upgrade_success: "&a¡Mejora realizada! Nuevo nivel: &e%level%"
+  upgrade_max: "&cEste bloque ya esta al nivel maximo."
+  not_enough_money: "&cNo tienes suficiente dinero. Necesitas &c$%cost%"
+  machine_placed: "&aHas colocado un %type%."
+  machine_broken: "&eHas roto el bloque y sus mejoras se han perdido (o guardado)."
+
+# =============================================================
+# BLOQUE 1: EL RECICLADOR (Recycler)
+# Convierte items gastados en recursos.
+# =============================================================
+blocks:
+  recycler:
+    enabled: true
+    settings:
+      gui_title: "&8Reciclador de Items"
+      # Sonidos: Usar nombres de BUKKIT SOUNDS (Spigot API)
+      sound_process: "BLOCK_LAVA_POP"
+      sound_finish: "BLOCK_ANVIL_USE"
+      sound_fail: "BLOCK_FIRE_EXTINGUISH"
+
+    # Estadisticas base (Nivel 0)
+    base_stats:
+      process_time_seconds: 15
+      success_chance: 35.0   # Probabilidad de exito (0.0 a 100.0)
+
+    # Mejoras (Upgrades)
+    upgrades:
+      speed:
+        enabled: true
+        max_level: 5
+        base_cost: 1000.0
+        cost_multiplier: 1.5      # Coste = Base * (Multiplicador ^ Nivel)
+        time_reduction: 2         # Segundos menos por nivel
+
+      luck:
+        enabled: true
+        max_level: 5
+        base_cost: 2500.0
+        cost_multiplier: 2.0
+        chance_bonus: 5.0         # Porcentaje extra de exito por nivel
+
+    # Recetas de Reciclaje
+    # Formato: MATERIAL_ENTRADA (Debe ser exacto)
+    recipes:
+      # --- Armaduras de Oro ---
+      GOLDEN_SWORD:
+        result: "GOLD_NUGGET"
+        min_amount: 1
+        max_amount: 3
+      GOLDEN_HELMET:
+        result: "GOLD_NUGGET"
+        min_amount: 2
+        max_amount: 4
+
+      # --- Armaduras de Hierro ---
+      IRON_CHESTPLATE:
+        result: "IRON_NUGGET" # O 'IRON_INGOT' si quieres dar lingotes
+        min_amount: 3
+        max_amount: 7
+      IRON_LEGGINGS:
+        result: "IRON_NUGGET"
+        min_amount: 2
+        max_amount: 5
+
+      # --- Armaduras de Cota de Malla (Chainmail) ---
+      CHAINMAIL_HELMET:
+        result: "IRON_NUGGET"
+        min_amount: 1
+        max_amount: 2
+
+      # --- Diamante (Mas dificil) ---
+      DIAMOND_SWORD:
+        result: "DIAMOND"
+        min_amount: 0      # Puede salir 0 aunque tenga exito
+        max_amount: 1
+
+      # --- Arcos ---
+      BOW:
+        result: "STRING"
+        min_amount: 1
+        max_amount: 2
+
+  # =============================================================
+  # BLOQUE 2: EL REPARADOR (Repairer)
+  # Repara items a cambio de dinero y materiales.
+  # =============================================================
+  repairer:
+    enabled: true
+    settings:
+      gui_title: "&8Reparador Automatico"
+      sound_process: "BLOCK_GRINDSTONE_USE"
+      sound_finish: "BLOCK_ANVIL_LAND"
+
+    base_stats:
+      process_time_seconds: 20
+      base_money_cost: 100.0  # Coste monetario base por reparacion
+
+    upgrades:
+      speed:
+        max_level: 5
+        base_cost: 1500.0
+        cost_multiplier: 1.6
+        time_reduction: 3
+
+      efficiency:
+        # Probabilidad de NO consumir el material de reparacion
+        max_level: 3
+        base_cost: 5000.0
+        cost_multiplier: 2.5
+        chance_bonus: 10.0 # 10% por nivel de reparar gratis (material)
+
+    # Materiales requeridos para reparar
+    repair_materials:
+      DIAMOND_SWORD: "DIAMOND"
+      DIAMOND_PICKAXE: "DIAMOND"
+      IRON_AXE: "IRON_INGOT"
+      NETHERITE_CHESTPLATE: "NETHERITE_INGOT"
+      GOLDEN_HOE: "GOLD_INGOT"
+      SHIELD: "OAK_PLANKS"
+      ELYTRA: "PHANTOM_MEMBRANE"
+
+  # =============================================================
+  # BLOQUE 3: EL DESENCANTADOR (Disenchanter)
+  # Extrae encantamientos a libros.
+  # =============================================================
+  disenchanter:
+    enabled: true
+    settings:
+      gui_title: "&5Desencantador Magico"
+      requires_book: true  # Requiere libro vacio en slot secundario
+      destroy_item: true   # Destruye el item original despues de sacar la magia
+
+    base_stats:
+      process_time_seconds: 60
+      xp_cost: 500         # Coste en puntos de XP (si decides usar XP)
