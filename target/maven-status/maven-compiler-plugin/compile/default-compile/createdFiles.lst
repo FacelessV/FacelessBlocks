@@ -7,6 +7,9 @@ bw\development\facelessBlocks\FacelessBlocks.class
 bw\development\facelessBlocks\listeners\InteractListener.class
 bw\development\facelessBlocks\tasks\AutoRefreshTask.class
 bw\development\facelessBlocks\utils\RecyclerRecipes$RecycleResult.class
+bw\development\facelessBlocks\utils\RepairUtils.class
+bw\development\facelessBlocks\hooks\VaultHook.class
 bw\development\facelessBlocks\data\Keys.class
 bw\development\facelessBlocks\data\MachineData.class
 bw\development\facelessBlocks\data\MachineManager.class
+bw\development\facelessBlocks\hooks\PointsHook.class

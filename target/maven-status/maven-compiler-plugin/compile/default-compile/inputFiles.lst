@@ -4,8 +4,11 @@ C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\faceless
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\data\MachineManager.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\FacelessBlocks.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\gui\MachineGUI.java
+C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\hooks\PointsHook.java
+C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\hooks\VaultHook.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\listeners\BlockListener.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\listeners\InteractListener.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\tasks\AutoRefreshTask.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\tasks\MachineTicker.java
 C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\utils\RecyclerRecipes.java
+C:\Users\fac3l\IdeaProjects\FacelessBlocks\src\main\java\bw\development\facelessBlocks\utils\RepairUtils.java

@@ -3,6 +3,7 @@ package bw.development.facelessBlocks;
 import bw.development.facelessBlocks.commands.MachineCommands;
 import bw.development.facelessBlocks.data.Keys;
 import bw.development.facelessBlocks.data.MachineManager;
+import bw.development.facelessBlocks.hooks.PointsHook; // Nuevo
 import bw.development.facelessBlocks.hooks.VaultHook;
 import bw.development.facelessBlocks.listeners.BlockListener;
 import bw.development.facelessBlocks.listeners.InteractListener;
@@ -19,20 +20,31 @@ public final class FacelessBlocks extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // 1. Configuración y Datos
         saveDefaultConfig();
         Keys.load(this);
 
-        // 2. Setup de Economía (Vault)
-        if (!VaultHook.setupEconomy(this)) {
-            getLogger().severe("¡Vault no encontrado! Desactivando plugin.");
-            getServer().getPluginManager().disablePlugin(this);
-            return;
+        String ecoType = getConfig().getString("economy_type", "VAULT").toUpperCase();
+
+        // 1. Setup de Economía según Config
+        if (ecoType.equals("POINTS")) {
+            if (!PointsHook.setupPoints(this)) {
+                getLogger().severe("¡PlayerPoints no encontrado! Se requiere para este modo.");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+            getLogger().info("Usando PlayerPoints para economía.");
+        } else {
+            // Por defecto Vault
+            if (!VaultHook.setupEconomy(this)) {
+                getLogger().severe("¡Vault no encontrado! Se requiere para este modo.");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+            getLogger().info("Usando Vault (Dinero) para economía.");
         }
 
         this.machineManager = new MachineManager(this);
 
-        // 3. Eventos y Comandos
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
         getServer().getPluginManager().registerEvents(new InteractListener(), this);
 
@@ -40,13 +52,13 @@ public final class FacelessBlocks extends JavaPlugin {
         getCommand("giverecycler").setExecutor(cmdExecutor);
         getCommand("clearrecyclers").setExecutor(cmdExecutor);
 
-        // 4. Tareas
         new MachineTicker().runTaskTimer(this, 20L, 20L);
         new AutoRefreshTask().runTaskTimer(this, 5L, 5L);
 
-        getLogger().info("FacelessBlocks habilitado con soporte de Economía.");
+        getLogger().info("FacelessBlocks habilitado correctamente.");
     }
 
+    // ... resto del archivo igual (onDisable, getInstance, getMachineManager)
     @Override
     public void onDisable() {
         getLogger().info("FacelessBlocks desactivado.");

@@ -3,6 +3,7 @@ package bw.development.facelessBlocks.listeners;
 import bw.development.facelessBlocks.FacelessBlocks;
 import bw.development.facelessBlocks.data.MachineData;
 import bw.development.facelessBlocks.gui.MachineGUI;
+import bw.development.facelessBlocks.hooks.PointsHook;
 import bw.development.facelessBlocks.hooks.VaultHook;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -85,7 +86,6 @@ public class InteractListener implements Listener {
         int maxLevel = 5;
         double cost = 0;
 
-        // Configurar precios según tipo (Coincide con Config y GUI)
         if (type.equals("SPEED")) {
             currentLevel = data.getSpeedLevel();
             cost = MachineGUI.calculateCost(1000, 1.5, currentLevel);
@@ -94,24 +94,38 @@ public class InteractListener implements Listener {
             cost = MachineGUI.calculateCost(2500, 2.0, currentLevel);
         }
 
-        // 1. Validar Nivel Máximo
         if (currentLevel >= maxLevel) {
             player.sendMessage(Component.text("§c¡Nivel máximo alcanzado!"));
             player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 1, 0.5f);
             return;
         }
 
-        // 2. Validar Dinero (Vault)
-        if (!VaultHook.getEconomy().has(player, cost)) {
-            player.sendMessage(Component.text("§cNo tienes suficiente dinero. Necesitas §e$" + (int)cost));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
-            return;
+        // --- LÓGICA DE COBRO (DUAL) ---
+        String ecoType = FacelessBlocks.getInstance().getConfig().getString("economy_type", "VAULT");
+
+        if (ecoType.equalsIgnoreCase("POINTS")) {
+            // Usar PlayerPoints
+            int costInt = (int) cost;
+            if (PointsHook.getAPI().look(player.getUniqueId()) < costInt) {
+                player.sendMessage(Component.text("§cNo tienes suficientes puntos. Necesitas §e" + costInt + " Puntos"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                return;
+            }
+            PointsHook.getAPI().take(player.getUniqueId(), costInt);
+            player.sendMessage(Component.text("§7Se te han cobrado §c" + costInt + " Puntos"));
+
+        } else {
+            // Usar Vault (Dinero)
+            if (!VaultHook.getEconomy().has(player, cost)) {
+                player.sendMessage(Component.text("§cNo tienes suficiente dinero. Necesitas §e$" + (int)cost));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                return;
+            }
+            VaultHook.getEconomy().withdrawPlayer(player, cost);
+            player.sendMessage(Component.text("§7Se te han cobrado §c$" + (int)cost));
         }
 
-        // 3. Cobrar
-        VaultHook.getEconomy().withdrawPlayer(player, cost);
-
-        // 4. Aplicar Mejora
+        // Aplicar mejora
         if (type.equals("SPEED")) {
             data.setSpeedLevel(currentLevel + 1);
         } else if (type.equals("LUCK")) {
@@ -122,7 +136,6 @@ public class InteractListener implements Listener {
         new MachineGUI(barrel).updateStatusIcon();
 
         player.sendMessage(Component.text("§a¡Mejora comprada! Nuevo nivel: " + (currentLevel + 1)));
-        player.sendMessage(Component.text("§7Se te han cobrado §c$" + (int)cost));
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);
     }
 }
