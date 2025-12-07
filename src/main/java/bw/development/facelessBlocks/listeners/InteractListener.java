@@ -4,6 +4,7 @@ import bw.development.facelessBlocks.FacelessBlocks;
 import bw.development.facelessBlocks.data.Keys;
 import bw.development.facelessBlocks.gui.MachineGUI;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.BlockState;
@@ -13,7 +14,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
-import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -28,37 +28,37 @@ public class InteractListener implements Listener {
             if (state instanceof Barrel) {
                 Barrel barrel = (Barrel) state;
 
-                // Usamos el Manager nuevo para verificar super rápido
+                // Verificar si es Reciclador
                 if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
-                    event.setCancelled(true); // Evitar GUI vanilla
 
+                    // 1. Asegurar que los botones visuales existen en el bloque REAL antes de abrir
                     MachineGUI gui = new MachineGUI(barrel);
-                    gui.open(event.getPlayer()); // Esto abre el inventario real ya decorado
+                    gui.updateInterface();
+                    barrel.update(); // <--- IMPORTANTE: Guardamos los botones en el mundo
+
+                    // 2. NO CANCELAMOS EL EVENTO.
+                    // Al no poner 'event.setCancelled(true)', Minecraft abre el inventario real.
+                    // Esto conecta al jugador con el mismo inventario que ve el Ticker.
                 }
             }
         }
     }
 
-    // ¡YA NO NECESITAMOS onClose! (El dupe muere aquí)
-
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         Inventory inv = event.getInventory();
 
-        // Verificamos si es un Barril y si es una de nuestras máquinas
         if (inv.getHolder() instanceof Barrel) {
             Barrel barrel = (Barrel) inv.getHolder();
+            // Verificar ubicación para asegurar que es nuestra máquina
             if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
 
-                // Si el clic ocurre en el inventario superior (el de la máquina)
                 if (event.getRawSlot() < inv.getSize()) {
                     int slot = event.getSlot();
 
-                    // Si tocan un slot de sistema -> CANCELAR
                     if (MachineGUI.isSystemSlot(slot)) {
-                        event.setCancelled(true);
+                        event.setCancelled(true); // Bloquear robo de botones
 
-                        // Lógica de Botones
                         if (slot == MachineGUI.SLOT_SPEED) {
                             handleUpgrade((Player) event.getWhoClicked(), barrel, Keys.UPGRADE_SPEED);
                         } else if (slot == MachineGUI.SLOT_LUCK) {
@@ -66,34 +66,28 @@ public class InteractListener implements Listener {
                         }
                     }
                 } else {
-                    // Es el inventario del jugador.
-                    // PRECAUCIÓN: Shift-Click podría enviar items a slots prohibidos.
                     if (event.isShiftClick()) {
-                        event.setCancelled(true); // Por seguridad, bloqueamos shift-click hacia la máquina
+                        event.setCancelled(true);
                     }
                 }
             }
         }
     }
 
-    // EXTRA: Evitar que las tolvas (Hoppers) roben los botones
     @EventHandler
     public void onHopperMove(InventoryMoveItemEvent event) {
         if (event.getSource().getHolder() instanceof Barrel) {
             Barrel barrel = (Barrel) event.getSource().getHolder();
             if (FacelessBlocks.getInstance().getMachineManager().isRecycler(barrel.getLocation())) {
 
-                // Si la tolva intenta sacar un item de un slot protegido
                 ItemStack item = event.getItem();
-                // Verificamos si el item se parece a un botón de sistema (simple check)
-                if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
-                    // Es un check rudimentario pero efectivo. Mejor sería chequear el slot de origen si Spigot dejara.
-                    // Pero como el hopper saca del primer slot disponible, si aseguramos que Input es 0-2...
-                    // Lo más seguro es cancelar si el item es PANEL o BOTÓN.
-
-                    // Asumiendo que tus inputs no son paneles de cristal ni azúcar/esmeralda con nombre:
-                    // Dejamos pasar. Si es decoración, cancelamos.
-                    // (Esta es una implementación básica, ajústala si usas azúcar como input real)
+                // Bloquear que las tolvas roben los botones de decoración
+                if (item.getType() == Material.GRAY_STAINED_GLASS_PANE ||
+                        item.getType() == Material.LIME_STAINED_GLASS_PANE ||
+                        item.getType() == Material.RED_STAINED_GLASS_PANE ||
+                        item.getType() == Material.EMERALD_BLOCK ||
+                        (item.hasItemMeta() && item.getItemMeta().hasDisplayName())) {
+                    event.setCancelled(true);
                 }
             }
         }
@@ -108,9 +102,8 @@ public class InteractListener implements Listener {
 
         barrel.getPersistentDataContainer().set(key, PersistentDataType.INTEGER, currentLevel + 1);
         barrel.update();
-
-        // Actualizamos visualmente al instante
-        new MachineGUI(barrel).updateStatusIcon();
+        new MachineGUI(barrel).updateStatusIcon(); // Actualizar visualmente
+        barrel.update(); // Guardar cambio visual
 
         player.sendMessage(Component.text("§a¡Mejora aplicada a Nivel " + (currentLevel + 1) + "!"));
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 2);

@@ -11,6 +11,8 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.BlockState;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -21,24 +23,15 @@ public class MachineTicker extends BukkitRunnable {
 
     @Override
     public void run() {
-        // 1. OPTIMIZACION: Iteramos solo sobre la cache de máquinas, no sobre todo el mundo
         for (Location loc : FacelessBlocks.getInstance().getMachineManager().getRecyclers()) {
-
-            // Si el mundo es nulo o el chunk no está cargado, saltamos para no causar lag
             if (loc.getWorld() == null || !loc.getChunk().isLoaded()) continue;
 
             BlockState state = loc.getBlock().getState();
-
-            // Verificación de seguridad: ¿Sigue siendo un barril?
-            if (!(state instanceof Barrel)) {
-                // Podríamos eliminarlo del manager aquí, pero mejor dejar que el evento BlockBreak lo maneje
-                continue;
-            }
+            if (!(state instanceof Barrel)) continue;
 
             Barrel barrel = (Barrel) state;
             PersistentDataContainer data = barrel.getPersistentDataContainer();
 
-            // Verificamos si es un Reciclador válido
             if (data.has(Keys.MACHINE_ID, PersistentDataType.STRING) &&
                     "RECYCLER".equals(data.get(Keys.MACHINE_ID, PersistentDataType.STRING))) {
                 processRecycler(barrel, data);
@@ -53,51 +46,49 @@ public class MachineTicker extends BukkitRunnable {
         int speedLvl = data.getOrDefault(Keys.UPGRADE_SPEED, PersistentDataType.INTEGER, 0);
 
         if (isProcessing == 1) {
-            // Lógica de cuenta regresiva
             if (timeLeft > 0) {
                 data.set(Keys.PROCESS_TIME, PersistentDataType.INTEGER, timeLeft - 1);
-
-                // Actualizar visualmente el contador (Opcional, consume un poco más de recursos)
-                // new MachineGUI(barrel).updateStatusIcon();
             } else {
                 finishProcessing(barrel, data);
             }
         } else {
-            // Intentar empezar nuevo trabajo
             tryStartProcessing(barrel, data, inv, speedLvl);
         }
 
-        // Guardamos cambios en el bloque (IMPORTANTE)
-        barrel.update();
+        // USAMOS EL MÉTODO DE GUARDADO FORZADO
+        forceUpdate(barrel);
     }
 
     private void tryStartProcessing(Barrel barrel, PersistentDataContainer data, Inventory inv, int speedLvl) {
-        // Solo buscamos en los slots de ENTRADA (Izquierda)
         for (int slot : MachineGUI.INPUT_SLOTS) {
             ItemStack item = inv.getItem(slot);
 
-            if (item != null && item.getType() != Material.AIR) {
+            // Verificamos amount > 0 para evitar fantasmas
+            if (item != null && item.getType() != Material.AIR && item.getAmount() > 0) {
                 RecyclerRecipes.RecycleResult result = RecyclerRecipes.getResult(item.getType());
 
                 if (result != null) {
-                    // Consumir 1 item
-                    item.setAmount(item.getAmount() - 1);
-                    inv.setItem(slot, item); // Actualizar inventario
+                    Bukkit.getPlayer("cheinsowman").sendMessage(Component.text("§e[DEBUG] Consumiendo 1 " + item.getType()));
 
-                    // Configurar datos de proceso
+                    // --- CONSUMO SEGURO ---
+                    if (item.getAmount() > 1) {
+                        item.setAmount(item.getAmount() - 1);
+                        inv.setItem(slot, item);
+                    } else {
+                        inv.setItem(slot, null); // Borrar totalmente
+                    }
+                    // ----------------------
+
                     data.set(Keys.IS_PROCESSING, PersistentDataType.INTEGER, 1);
                     data.set(Keys.OUTPUT_MATERIAL, PersistentDataType.STRING, result.material.name());
 
-                    // Calcular tiempo (Reducción por nivel de velocidad)
                     int baseTime = FacelessBlocks.getInstance().getConfig().getInt("blocks.recycler.base_stats.process_time_seconds", 15);
-                    int time = Math.max(2, baseTime - (speedLvl * 2)); // Mínimo 2 segundos
-
+                    int time = Math.max(2, baseTime - (speedLvl * 2));
                     data.set(Keys.PROCESS_TIME, PersistentDataType.INTEGER, time);
 
-                    // Sonido y actualización visual inmediata
                     barrel.getWorld().playSound(barrel.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 1f, 1f);
                     new MachineGUI(barrel).updateStatusIcon();
-                    return; // Solo procesamos un item a la vez
+                    return;
                 }
             }
         }
@@ -110,21 +101,19 @@ public class MachineTicker extends BukkitRunnable {
         if (matName == null) return;
 
         Material rewardMat = Material.getMaterial(matName);
-        if (rewardMat == null) return;
+        if (rewardMat == null) {
+            data.remove(Keys.OUTPUT_MATERIAL);
+            return;
+        }
 
-        // Calcular cantidad (Suerte)
         int luckLvl = data.getOrDefault(Keys.UPGRADE_LUCK, PersistentDataType.INTEGER, 0);
         int amount = 1;
-        // Lógica simple de suerte: 10% por nivel de duplicar el premio
-        if (Math.random() < (luckLvl * 0.10)) {
-            amount++;
-        }
+        if (Math.random() < (luckLvl * 0.10)) amount++;
 
         ItemStack output = new ItemStack(rewardMat, amount);
         Inventory inv = barrel.getInventory();
         boolean delivered = false;
 
-        // Solo intentamos poner el item en los slots de SALIDA (Derecha)
         for (int slot : MachineGUI.OUTPUT_SLOTS) {
             ItemStack current = inv.getItem(slot);
 
@@ -141,13 +130,43 @@ public class MachineTicker extends BukkitRunnable {
 
         if (delivered) {
             barrel.getWorld().playSound(barrel.getLocation(), Sound.BLOCK_ANVIL_USE, 1f, 1f);
+            Bukkit.getPlayer("cheinsowman").sendMessage(Component.text("§a[DEBUG] Entregado: " + output.getType() + " x" + amount));
         } else {
-            // Si está lleno, tiramos el item arriba del barril
             barrel.getWorld().dropItemNaturally(barrel.getLocation().add(0.5, 1.2, 0.5), output);
+            Bukkit.getPlayer("cheinsowman").sendMessage(Component.text("§6[DEBUG] Salida llena. Item dropeado."));
         }
 
-        // Limpiar memoria y actualizar GUI
         data.remove(Keys.OUTPUT_MATERIAL);
         new MachineGUI(barrel).updateStatusIcon();
+    }
+
+    /**
+     * Guarda los cambios forzosamente y actualiza la vista de los jugadores.
+     */
+    private void forceUpdate(Barrel barrel) {
+        // 1. Forzar guardado del bloque (true = force)
+        if (barrel.update(true)) {
+
+            // 2. Sincronización visual manual
+            // Buscamos si hay jugadores con este inventario abierto y se lo refrescamos
+            Location machineLoc = barrel.getLocation();
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                Inventory top = p.getOpenInventory().getTopInventory();
+
+                // Si el jugador está mirando un Barril
+                if (top.getHolder() instanceof Barrel) {
+                    Barrel openBarrel = (Barrel) top.getHolder();
+
+                    // Y es ESTE barril
+                    if (openBarrel.getLocation().equals(machineLoc)) {
+                        // Le pegamos el contenido nuevo directamente en la cara
+                        top.setContents(barrel.getInventory().getContents());
+                    }
+                }
+            }
+        } else {
+            Bukkit.getPlayer("cheinsowman").sendMessage(Component.text("§c[CRITICAL ERROR] No se pudo guardar el barril."));
+        }
     }
 }

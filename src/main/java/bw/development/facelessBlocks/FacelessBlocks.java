@@ -1,5 +1,6 @@
 package bw.development.facelessBlocks;
 
+import bw.development.facelessBlocks.commands.MachineCommands;
 import bw.development.facelessBlocks.data.Keys;
 import bw.development.facelessBlocks.data.MachineManager;
 import bw.development.facelessBlocks.listeners.BlockListener;
@@ -28,6 +29,10 @@ public final class FacelessBlocks extends JavaPlugin {
         // 3. Registrar Eventos
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
         getServer().getPluginManager().registerEvents(new InteractListener(), this);
+
+        MachineCommands cmdExecutor = new MachineCommands();
+        getCommand("giverecycler").setExecutor(cmdExecutor);
+        getCommand("clearrecyclers").setExecutor(cmdExecutor);
 
         // 4. Iniciar la tarea repetitiva (El Ticker)
         // Se ejecuta cada 20 ticks (1 segundo)
