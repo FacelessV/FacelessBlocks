@@ -1,7 +1,6 @@
 package bw.development.facelessBlocks.gui;
 
 import bw.development.facelessBlocks.FacelessBlocks;
-import bw.development.facelessBlocks.data.Keys;
 import bw.development.facelessBlocks.data.MachineData;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -10,7 +9,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -24,7 +22,7 @@ public class MachineGUI {
     public static final int[] OUTPUT_SLOTS = {6, 7, 8, 16, 17, 24, 25, 26};
     public static final int[] DECORATION_SLOTS = {3, 4, 5, 12, 14, 21, 22, 23};
     public static final int SLOT_SPEED = 11;
-    public static final int SLOT_LUCK = 15;
+    public static final int SLOT_LUCK = 15; // También usado para Eficiencia
     public static final int SLOT_STATUS = 13;
 
     public MachineGUI(Barrel barrel) {
@@ -52,47 +50,65 @@ public class MachineGUI {
         MachineData data = FacelessBlocks.getInstance().getMachineManager().getMachine(barrel.getLocation());
         if (data == null) return;
 
-        // 1. Detectar Tipo de Máquina
-        String machineType = barrel.getPersistentDataContainer().getOrDefault(Keys.MACHINE_ID, PersistentDataType.STRING, "RECYCLER");
-        boolean isRepairer = "REPAIRER".equals(machineType);
-
-        // 2. Estado
+        // --- ESTADO CENTRAL ---
         if (data.isProcessing()) {
             Material mat = (data.getTimeLeft() % 2 == 0) ? Material.LIME_STAINED_GLASS_PANE : Material.EMERALD_BLOCK;
             inventory.setItem(SLOT_STATUS, createItem(mat,
                     "§a§lPROCESANDO...",
-                    "§7Tiempo: §f" + data.getTimeLeft() + "s",
-                    "§7¡No toques!"
+                    "§7Tiempo restante: §f" + data.getTimeLeft() + "s",
+                    "§7¡No rompas el bloque!"
             ));
         } else {
+            String title = switch (data.getMachineId()) {
+                case "RECYCLER" -> "§8Reciclador";
+                case "REPAIRER" -> "§8Reparador";
+                case "DISENCHANTER" -> "§5Desencantador";
+                default -> "§8Máquina";
+            };
             inventory.setItem(SLOT_STATUS, createItem(Material.RED_STAINED_GLASS_PANE,
                     "§c§lESPERANDO...",
+                    "§7" + title,
                     "§7Coloca items a la izquierda."
             ));
         }
 
-        // 3. Botones Adaptativos
+        // --- BOTONES ---
         String ecoType = FacelessBlocks.getInstance().getConfig().getString("economy_type", "VAULT");
-        String symbol = ecoType.equalsIgnoreCase("POINTS") ? " Puntos" : "$";
+        String currency = ecoType.equalsIgnoreCase("POINTS") ? " Puntos" : "$";
 
+        // Velocidad (Común para todos)
         double speedCost = calculateCost(1000, 1.5, data.getSpeedLevel());
-        double luckCost = calculateCost(isRepairer ? 5000 : 2500, isRepairer ? 2.5 : 2.0, data.getLuckLevel());
+        String speedStr = ecoType.equalsIgnoreCase("POINTS") ? (int)speedCost + currency : currency + (int)speedCost;
 
-        // Botón Velocidad
         inventory.setItem(SLOT_SPEED, createItem(Material.SUGAR,
                 "§bMejora Velocidad",
                 "§7Nivel: §f" + data.getSpeedLevel(),
-                "§eCoste: §6" + (int)speedCost + symbol
+                "§eCoste: §6" + speedStr
         ));
 
-        // Botón Secundaria (Suerte o Eficiencia)
-        String title = isRepairer ? "§aMejora Eficiencia" : "§aMejora Suerte";
-        inventory.setItem(SLOT_LUCK, createItem(Material.EMERALD,
-                title,
-                "§7Nivel: §f" + data.getLuckLevel(),
-                "§eCoste: §6" + (int)luckCost + symbol,
-                isRepairer ? "§7(Probabilidad de reparar GRATIS)" : "§7(Probabilidad de items extra)"
-        ));
+        // Botón Secundario (Suerte o Eficiencia)
+        if (data.getMachineId().equals("REPAIRER")) {
+            // REPARADOR: Usa Eficiencia
+            double effCost = calculateCost(5000, 2.5, data.getEfficiencyLevel());
+            String effStr = ecoType.equalsIgnoreCase("POINTS") ? (int)effCost + currency : currency + (int)effCost;
+
+            inventory.setItem(SLOT_LUCK, createItem(Material.ANVIL,
+                    "§9Mejora Eficiencia",
+                    "§7Probabilidad de no gastar material",
+                    "§7Nivel: §f" + data.getEfficiencyLevel(),
+                    "§eCoste: §6" + effStr
+            ));
+        } else {
+            // RECICLADOR / OTROS: Usa Suerte
+            double luckCost = calculateCost(2500, 2.0, data.getLuckLevel());
+            String luckStr = ecoType.equalsIgnoreCase("POINTS") ? (int)luckCost + currency : currency + (int)luckCost;
+
+            inventory.setItem(SLOT_LUCK, createItem(Material.EMERALD,
+                    "§aMejora Suerte",
+                    "§7Nivel: §f" + data.getLuckLevel(),
+                    "§eCoste: §6" + luckStr
+            ));
+        }
     }
 
     public static double calculateCost(double base, double multiplier, int currentLevel) {

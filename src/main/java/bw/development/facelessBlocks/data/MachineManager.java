@@ -21,7 +21,6 @@ public class MachineManager {
     private final File file;
     private FileConfiguration data;
 
-    // EL MAPA PRINCIPAL: Ubicación -> Datos
     private final Map<Location, MachineData> machines = new HashMap<>();
 
     public MachineManager(FacelessBlocks plugin) {
@@ -30,9 +29,10 @@ public class MachineManager {
         load();
     }
 
-    public void createMachine(Location loc) {
+    // AHORA PEDIMOS EL TIPO AL CREAR
+    public void createMachine(Location loc, String type) {
         if (!machines.containsKey(loc)) {
-            machines.put(loc, new MachineData());
+            machines.put(loc, new MachineData(type));
             saveAsync();
         }
     }
@@ -56,8 +56,6 @@ public class MachineManager {
         return machines;
     }
 
-    // --- CARGA Y GUARDADO ---
-
     private void load() {
         if (!file.exists()) return;
         data = YamlConfiguration.loadConfiguration(file);
@@ -71,9 +69,11 @@ public class MachineManager {
                 if (loc == null) continue;
 
                 MachineData md = new MachineData();
+                // Cargamos el ID, si no existe asumimos que es un Reciclador viejo
+                md.setMachineId(sec.getString(key + ".type", "RECYCLER"));
                 md.setSpeedLevel(sec.getInt(key + ".speed"));
                 md.setLuckLevel(sec.getInt(key + ".luck"));
-                // No cargamos "timeLeft" para que al reiniciar no se bugee el proceso a medias
+                md.setEfficiencyLevel(sec.getInt(key + ".efficiency")); // Nuevo
 
                 machines.put(loc, md);
             } catch (Exception e) {
@@ -86,15 +86,17 @@ public class MachineManager {
     public void saveAsync() {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             if (data == null) data = new YamlConfiguration();
-            data.set("machines", null); // Limpiar viejo
+            data.set("machines", null);
 
             for (Map.Entry<Location, MachineData> entry : machines.entrySet()) {
                 String locStr = locToString(entry.getKey());
                 String path = "machines." + locStr;
                 MachineData md = entry.getValue();
 
+                data.set(path + ".type", md.getMachineId());
                 data.set(path + ".speed", md.getSpeedLevel());
                 data.set(path + ".luck", md.getLuckLevel());
+                data.set(path + ".efficiency", md.getEfficiencyLevel());
             }
 
             try {
