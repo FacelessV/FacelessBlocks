@@ -1,5 +1,6 @@
 package bw.development.facelessBlocks.listeners;
 
+import bw.development.facelessBlocks.FacelessBlocks;
 import bw.development.facelessBlocks.data.Keys;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -8,6 +9,7 @@ import org.bukkit.block.Barrel;
 import org.bukkit.block.BlockState;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -52,12 +54,25 @@ public class BlockListener implements Listener {
 
                 barrel.update();
 
+                FacelessBlocks.getInstance().getMachineManager().addRecycler(event.getBlockPlaced().getLocation());
+
                 event.getPlayer().sendMessage(Component.text("§a[FacelessBlocks] ¡Has creado un Reciclador correctamente!"));
             }
         } else {
             // Mensaje para saber por que fallo si tiene nombre pero no es igual
             if (!rawName.equals("Sin Nombre/Meta")) {
                 event.getPlayer().sendMessage(Component.text("§c[DEBUG] Fallo: '" + rawName + "' no es igual a 'Reciclador'"));
+            }
+        }
+    }
+
+    @EventHandler
+    public void onBreak(BlockBreakEvent event) {
+        if (event.getBlock().getType() == Material.BARREL) {
+            // Verificar si es una de nuestras máquinas
+            if (FacelessBlocks.getInstance().getMachineManager().isRecycler(event.getBlock().getLocation())) {
+                FacelessBlocks.getInstance().getMachineManager().removeRecycler(event.getBlock().getLocation());
+                event.getPlayer().sendMessage(Component.text("§e[FacelessBlocks] Reciclador eliminado."));
             }
         }
     }

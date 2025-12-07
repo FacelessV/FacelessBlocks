@@ -1,6 +1,7 @@
 package bw.development.facelessBlocks;
 
 import bw.development.facelessBlocks.data.Keys;
+import bw.development.facelessBlocks.data.MachineManager;
 import bw.development.facelessBlocks.listeners.BlockListener;
 import bw.development.facelessBlocks.listeners.InteractListener;
 import bw.development.facelessBlocks.tasks.AutoRefreshTask;
@@ -10,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class FacelessBlocks extends JavaPlugin {
 
     private static FacelessBlocks instance;
+    private MachineManager machineManager;
 
     @Override
     public void onEnable() {
@@ -20,6 +22,8 @@ public final class FacelessBlocks extends JavaPlugin {
 
         // 2. Cargar Llaves de Datos
         Keys.load(this);
+
+        this.machineManager = new MachineManager(this);
 
         // 3. Registrar Eventos
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
@@ -40,5 +44,9 @@ public final class FacelessBlocks extends JavaPlugin {
 
     public static FacelessBlocks getInstance() {
         return instance;
+    }
+
+    public MachineManager getMachineManager() {
+        return machineManager;
     }
 }
